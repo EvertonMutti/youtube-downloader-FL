@@ -76,10 +76,10 @@ class AppStrings {
       'Conceda permissao de armazenamento nas configuracoes do sistema';
 
   // yt-dlp settings
-  static const labelYtdlpSection = 'Motor de Download (Android)';
+  static const labelYtdlpSection = 'Motor de Download';
   static const labelPreferYtdlp = 'Usar yt-dlp (mais confiavel)';
   static const labelPreferYtdlpSubtitle =
-      'Requer download do binario yt-dlp (~10 MB) no primeiro uso';
+      'Requer download do binario yt-dlp (~10 MB) no primeiro uso (Windows: yt-dlp.exe, Android: ARM64)';
   static const labelDownloadYtdlp = 'Baixar yt-dlp agora';
   static const labelYtdlpReady = 'yt-dlp instalado e pronto';
   static const labelYtdlpNotInstalled = 'yt-dlp nao instalado';

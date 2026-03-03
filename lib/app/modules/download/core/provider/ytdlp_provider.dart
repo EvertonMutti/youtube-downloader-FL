@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:youtube_downloader/app/core/services/ytdlp_service.dart';
 import 'package:youtube_downloader/app/core/utils/file_utils.dart';
 import 'package:youtube_downloader/app/modules/download/core/model/download_task_model.dart';
@@ -113,12 +114,20 @@ class YtdlpProvider implements DownloadRepository {
     required bool Function() isCancelled,
   }) async {
     final url = '$_ytWatchBase$videoId';
-    final ext = streamOption.isAudioOnly ? 'mp3' : 'mp4';
-    final filePath = FileUtils.buildFilePath(outputDirectory, title, ext);
+    // For audio: use template so yt-dlp picks the real extension (no ffmpeg needed)
+    final filePath = streamOption.isAudioOnly
+        ? '$outputDirectory/%(title)s.%(ext)s'
+        : FileUtils.buildFilePath(outputDirectory, title, 'mp4');
     await FileUtils.ensureDirectoryExists(outputDirectory);
 
+    debugPrint('[YtdlpProvider] downloadVideo: iniciando — videoId=$videoId, isAudio=${streamOption.isAudioOnly}, destino=$filePath');
+
     final args = [
-      if (streamOption.isAudioOnly) ...['-x', '--audio-format', 'mp3'],
+      if (streamOption.isAudioOnly) ...[
+        '-f', 'bestaudio[ext=m4a]/bestaudio',
+        '-x',
+        // sem --audio-format: evita dependência de ffmpeg
+      ],
       if (!streamOption.isAudioOnly) ...[
         '-f',
         'bestvideo+bestaudio/best',
@@ -136,11 +145,26 @@ class YtdlpProvider implements DownloadRepository {
     try {
       final process = await Process.start(YtdlpService.to.binaryPath, args);
       _activeProcess = process;
+      debugPrint('[YtdlpProvider] downloadVideo: processo iniciado (PID desconhecido)');
+
+      String? actualPath;
 
       process.stdout
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen((line) {
+        debugPrint('[YtdlpProvider] downloadVideo stdout: $line');
+      });
+
+      process.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+        if (line.trim().isEmpty) return;
+        debugPrint('[YtdlpProvider] downloadVideo stderr: $line');
+        if (line.startsWith('[download] Destination:')) {
+          actualPath = line.replaceFirst('[download] Destination:', '').trim();
+        }
         final match = _progressRegex.firstMatch(line);
         if (match != null) {
           final percent = double.tryParse(match.group(1)!) ?? 0;
@@ -151,6 +175,7 @@ class YtdlpProvider implements DownloadRepository {
       Timer? cancelTimer;
       cancelTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
         if (isCancelled()) {
+          debugPrint('[YtdlpProvider] downloadVideo: isCancelled=true — enviando SIGTERM ao processo');
           process.kill(ProcessSignal.sigterm);
           cancelTimer?.cancel();
         }
@@ -159,9 +184,12 @@ class YtdlpProvider implements DownloadRepository {
       final exitCode = await process.exitCode;
       cancelTimer.cancel();
       _activeProcess = null;
+      debugPrint('[YtdlpProvider] downloadVideo: processo encerrado com exitCode=$exitCode');
 
       if (isCancelled()) {
-        final file = File(filePath);
+        debugPrint('[YtdlpProvider] downloadVideo: CANCELADO — removendo arquivo parcial');
+        final target = actualPath ?? filePath;
+        final file = File(target);
         if (await file.exists()) await file.delete();
         return DownloadTaskModel(
           status: false,
@@ -171,6 +199,7 @@ class YtdlpProvider implements DownloadRepository {
       }
 
       if (exitCode != 0) {
+        debugPrint('[YtdlpProvider] downloadVideo: ERRO — exitCode=$exitCode');
         return DownloadTaskModel(
           status: false,
           detail: 'Erro no download (codigo $exitCode)',
@@ -178,6 +207,8 @@ class YtdlpProvider implements DownloadRepository {
         );
       }
 
+      final savedPath = actualPath ?? filePath;
+      debugPrint('[YtdlpProvider] downloadVideo: CONCLUIDO — salvo em $savedPath');
       return DownloadTaskModel(
         status: true,
         detail: 'Download concluido!',
@@ -185,10 +216,11 @@ class YtdlpProvider implements DownloadRepository {
         title: title,
         downloadStatus: DownloadStatus.completed,
         progress: 1.0,
-        savedPath: filePath,
+        savedPath: savedPath,
       );
     } catch (e) {
       _activeProcess = null;
+      debugPrint('[YtdlpProvider] downloadVideo: EXCECAO — $e');
       return DownloadTaskModel(
         status: false,
         detail: 'Erro no download: $e',
@@ -209,10 +241,16 @@ class YtdlpProvider implements DownloadRepository {
     final url = '$_ytPlaylistBase$playlistId';
     await FileUtils.ensureDirectoryExists(outputDirectory);
 
+    debugPrint('[YtdlpProvider] downloadPlaylist: iniciando — playlistId=$playlistId, audioOnly=$audioOnly, destino=$outputDirectory');
+
     final outputTemplate = '$outputDirectory/%(title)s.%(ext)s';
 
     final args = [
-      if (audioOnly) ...['-x', '--audio-format', 'mp3'],
+      if (audioOnly) ...[
+        '-f', 'bestaudio[ext=m4a]/bestaudio',
+        '-x',
+        // sem --audio-format: evita dependência de ffmpeg
+      ],
       if (!audioOnly) ...[
         '-f',
         'bestvideo+bestaudio/best',
@@ -230,6 +268,7 @@ class YtdlpProvider implements DownloadRepository {
     try {
       final process = await Process.start(YtdlpService.to.binaryPath, args);
       _activeProcess = process;
+      debugPrint('[YtdlpProvider] downloadPlaylist: processo iniciado');
 
       int currentItem = 0;
       int totalItems = 0;
@@ -239,22 +278,34 @@ class YtdlpProvider implements DownloadRepository {
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen((line) {
+        debugPrint('[YtdlpProvider] downloadPlaylist stdout: $line');
+      });
+
+      process.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+        if (line.trim().isEmpty) return;
+        debugPrint('[YtdlpProvider] downloadPlaylist stderr: $line');
+
         final itemMatch = _itemRegex.firstMatch(line);
         if (itemMatch != null) {
           currentItem = int.parse(itemMatch.group(1)!);
           totalItems = int.parse(itemMatch.group(2)!);
+          debugPrint('[YtdlpProvider] downloadPlaylist: item $currentItem/$totalItems — "$currentTitle"');
           onProgress(0.0, currentItem, totalItems, currentTitle);
           return;
         }
 
-        // Capture current video title from yt-dlp output
-        // "[youtube] <id>: Downloading..."  or "[download] Destination: path/title.ext"
+        // Capture current video title from "[download] Destination: path/title.ext"
         if (line.startsWith('[download] Destination:')) {
-          final parts = line.split('/');
+          final dest = line.replaceFirst('[download] Destination:', '').trim();
+          final parts = dest.replaceAll('\\', '/').split('/');
           if (parts.isNotEmpty) {
             final fileName = parts.last;
             final dotIndex = fileName.lastIndexOf('.');
             currentTitle = dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
+            debugPrint('[YtdlpProvider] downloadPlaylist: titulo atual = "$currentTitle"');
           }
         }
 
@@ -268,6 +319,7 @@ class YtdlpProvider implements DownloadRepository {
       Timer? cancelTimer;
       cancelTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
         if (isCancelled()) {
+          debugPrint('[YtdlpProvider] downloadPlaylist: isCancelled=true — enviando SIGTERM ao processo');
           process.kill(ProcessSignal.sigterm);
           cancelTimer?.cancel();
         }
@@ -276,8 +328,10 @@ class YtdlpProvider implements DownloadRepository {
       final exitCode = await process.exitCode;
       cancelTimer.cancel();
       _activeProcess = null;
+      debugPrint('[YtdlpProvider] downloadPlaylist: processo encerrado com exitCode=$exitCode');
 
       if (isCancelled()) {
+        debugPrint('[YtdlpProvider] downloadPlaylist: CANCELADO');
         return DownloadTaskModel(
           status: false,
           detail: 'Download cancelado',
@@ -286,6 +340,7 @@ class YtdlpProvider implements DownloadRepository {
       }
 
       if (exitCode != 0) {
+        debugPrint('[YtdlpProvider] downloadPlaylist: ERRO — exitCode=$exitCode');
         return DownloadTaskModel(
           status: false,
           detail: 'Erro ao baixar playlist (codigo $exitCode)',
@@ -293,6 +348,7 @@ class YtdlpProvider implements DownloadRepository {
         );
       }
 
+      debugPrint('[YtdlpProvider] downloadPlaylist: CONCLUIDO — $totalItems items processados');
       return DownloadTaskModel(
         status: true,
         detail: 'Playlist baixada com sucesso!',
@@ -302,6 +358,7 @@ class YtdlpProvider implements DownloadRepository {
       );
     } catch (e) {
       _activeProcess = null;
+      debugPrint('[YtdlpProvider] downloadPlaylist: EXCECAO — $e');
       return DownloadTaskModel(
         status: false,
         detail: 'Erro ao baixar playlist: $e',
@@ -312,6 +369,7 @@ class YtdlpProvider implements DownloadRepository {
 
   @override
   void abortDownload() {
+    debugPrint('[YtdlpProvider] abortDownload: enviando SIGTERM ao processo ativo (hasProcess=${_activeProcess != null})');
     _activeProcess?.kill(ProcessSignal.sigterm);
     _activeProcess = null;
   }

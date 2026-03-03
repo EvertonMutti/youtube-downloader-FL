@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:youtube_downloader/app/core/services/settings_service.dart';
 import 'package:youtube_downloader/app/core/services/ytdlp_service.dart';
@@ -12,11 +11,13 @@ class DownloadBinding implements Bindings {
   @override
   void dependencies() {
     Get.lazyPut<DownloadRepository>(() {
-      if (Platform.isAndroid &&
-          SettingsService.to.preferYtdlp &&
-          YtdlpService.to.isAvailable) {
+      final preferYtdlp = SettingsService.to.preferYtdlp;
+      final ytdlpAvailable = YtdlpService.to.isAvailable;
+      if (preferYtdlp && ytdlpAvailable) {
+        debugPrint('[Binding] Provider selecionado: YtdlpProvider (preferYtdlp=$preferYtdlp, isAvailable=$ytdlpAvailable)');
         return YtdlpProvider();
       }
+      debugPrint('[Binding] Provider selecionado: YoutubeExplodeProvider (preferYtdlp=$preferYtdlp, ytdlpAvailable=$ytdlpAvailable)');
       return YoutubeExplodeProvider();
     }, fenix: true);
     Get.lazyPut<DownloadController>(

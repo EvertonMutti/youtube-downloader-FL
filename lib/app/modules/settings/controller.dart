@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -33,8 +31,8 @@ class SettingsController extends GetxController {
   QualityOption get getSelectedQuality => selectedQuality.value;
   DownloadType get getSelectedType => selectedType.value;
   bool get getPreferYtdlp => preferYtdlp.value;
-  bool get isAndroid => Platform.isAndroid;
-  bool get isYtdlpInstalled => Platform.isAndroid && YtdlpService.to.isAvailable;
+  bool get supportsYtdlp => YtdlpService.isSupportedPlatform;
+  bool get isYtdlpInstalled => YtdlpService.isSupportedPlatform && YtdlpService.to.isAvailable;
 
   set setLoading(bool value) => loading.value = value;
   set setSaving(bool value) => saving.value = value;

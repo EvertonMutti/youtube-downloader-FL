@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -46,6 +47,7 @@ class DownloadController extends GetxController {
   set setDownloading(bool v) => downloading.value = v;
 
   void cancelDownload() {
+    debugPrint('[DownloadCtrl] cancelDownload: solicitacao de cancelamento enviada');
     _cancelRequested = true;
     repository.abortDownload(); // closes HTTP client → breaks the internal stream loop
   }
@@ -152,8 +154,13 @@ class DownloadController extends GetxController {
     _cancelRequested = false;
     setDownloading = true;
 
+    debugPrint('[DownloadCtrl] startDownload: tipo=${info.isPlaylist ? "playlist" : "video"}, id=${info.videoId}, destino=$outputDir');
+
     // Auto-abort if download takes more than 5 minutes
-    final abortTimer = Timer(const Duration(minutes: 5), cancelDownload);
+    final abortTimer = Timer(const Duration(minutes: 5), () {
+      debugPrint('[DownloadCtrl] startDownload: TIMEOUT de 5 min atingido — abortando');
+      cancelDownload();
+    });
 
     try {
       if (info.isPlaylist) {
@@ -165,6 +172,7 @@ class DownloadController extends GetxController {
       abortTimer.cancel();
       _cancelRequested = false;
       setDownloading = false;
+      debugPrint('[DownloadCtrl] startDownload: finally — downloading=false');
     }
   }
 
@@ -181,6 +189,8 @@ class DownloadController extends GetxController {
       setDownloading = false;
       return;
     }
+
+    debugPrint('[DownloadCtrl] _downloadSingleVideo: iniciando — videoId=${info.videoId}, isAudio=${option.isAudioOnly}, tag=${option.tag}');
 
     currentTask.value = DownloadTaskModel(
       title: info.title,
@@ -203,9 +213,11 @@ class DownloadController extends GetxController {
       isCancelled: () => _cancelRequested,
     );
 
+    debugPrint('[DownloadCtrl] _downloadSingleVideo: resultado=${result.downloadStatus}, detail=${result.detail}');
     currentTask.value = result;
 
     if (result.downloadStatus == DownloadStatus.cancelled) {
+      debugPrint('[DownloadCtrl] _downloadSingleVideo: CANCELADO pelo usuario');
       // No snackbar needed — the UI already updates to cancelled state
     } else if (result.status == true) {
       Get.snackbar(
@@ -228,6 +240,8 @@ class DownloadController extends GetxController {
   }
 
   Future<void> _downloadPlaylist(VideoInfoModel info, String outputDir) async {
+    debugPrint('[DownloadCtrl] _downloadPlaylist: iniciando — playlistId=${info.videoId}, total=${info.playlistCount}, audioOnly=${audioOnly.value}');
+
     currentTask.value = DownloadTaskModel(
       title: info.title,
       downloadStatus: DownloadStatus.downloading,
@@ -252,9 +266,11 @@ class DownloadController extends GetxController {
       },
     );
 
+    debugPrint('[DownloadCtrl] _downloadPlaylist: resultado=${result.downloadStatus}, detail=${result.detail}');
     currentTask.value = result;
 
     if (result.downloadStatus == DownloadStatus.cancelled) {
+      debugPrint('[DownloadCtrl] _downloadPlaylist: CANCELADO pelo usuario');
       // No snackbar needed — the UI already updates to cancelled state
     } else if (result.status == true) {
       Get.snackbar(

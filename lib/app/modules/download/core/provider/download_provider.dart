@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:youtube_downloader/app/core/utils/file_utils.dart';
 import 'package:youtube_downloader/app/modules/download/core/model/download_task_model.dart';
 import 'package:youtube_downloader/app/modules/download/core/model/stream_option_model.dart';
@@ -144,6 +145,7 @@ class YoutubeExplodeProvider implements DownloadRepository {
     required void Function(double progress) onProgress,
     required bool Function() isCancelled,
   }) async {
+    debugPrint('[YTProvider] downloadVideo: iniciando — videoId=$videoId, isAudio=${streamOption.isAudioOnly}, tag=${streamOption.tag}');
     try {
       final manifest = (_cachedManifestVideoId == videoId && _cachedManifest != null)
           ? _cachedManifest!
@@ -167,21 +169,26 @@ class YoutubeExplodeProvider implements DownloadRepository {
         );
       }
 
-      final ext = streamOption.isAudioOnly ? 'mp3' : streamOption.container ?? 'mp4';
+      final ext = streamOption.isAudioOnly
+          ? _resolveAudioExt(streamOption.container)
+          : streamOption.container ?? 'mp4';
       final filePath = FileUtils.buildFilePath(outputDirectory, title, ext);
       await FileUtils.ensureDirectoryExists(outputDirectory);
+
+      final totalBytes = streamInfo.size.totalBytes;
+      debugPrint('[YTProvider] downloadVideo: stream resolvida — tag=${streamInfo.tag}, totalBytes=$totalBytes, destino=$filePath');
 
       final file = File(filePath);
       final sink = file.openWrite();
 
       try {
         final stream = _yt.videos.streamsClient.get(streamInfo);
-        final totalBytes = streamInfo.size.totalBytes;
         int received = 0;
 
         bool cancelled = false;
         await for (final chunk in stream) {
           if (isCancelled()) {
+            debugPrint('[YTProvider] downloadVideo: isCancelled=true — interrompendo loop (recebido: $received/$totalBytes bytes)');
             cancelled = true;
             break;
           }
@@ -189,6 +196,8 @@ class YoutubeExplodeProvider implements DownloadRepository {
           received += chunk.length;
           if (totalBytes > 0) {
             onProgress(received / totalBytes);
+          } else {
+            onProgress((received / _audioEstimateBytes).clamp(0.0, 0.95));
           }
         }
 
@@ -196,6 +205,7 @@ class YoutubeExplodeProvider implements DownloadRepository {
         await sink.close();
 
         if (cancelled || isCancelled()) {
+          debugPrint('[YTProvider] downloadVideo: CANCELADO — removendo arquivo parcial');
           if (await file.exists()) await file.delete();
           return DownloadTaskModel(
             status: false,
@@ -204,11 +214,13 @@ class YoutubeExplodeProvider implements DownloadRepository {
           );
         }
       } catch (e) {
+        debugPrint('[YTProvider] downloadVideo: ERRO no stream — $e');
         await sink.close();
         if (await file.exists()) await file.delete();
         rethrow;
       }
 
+      debugPrint('[YTProvider] downloadVideo: CONCLUIDO — salvo em $filePath');
       return DownloadTaskModel(
         status: true,
         detail: 'Download concluido!',
@@ -219,6 +231,7 @@ class YoutubeExplodeProvider implements DownloadRepository {
         savedPath: filePath,
       );
     } catch (e) {
+      debugPrint('[YTProvider] downloadVideo: ERRO — ${_friendlyError(e)}');
       return DownloadTaskModel(
         status: false,
         detail: 'Erro no download: ${_friendlyError(e)}',
@@ -236,11 +249,14 @@ class YoutubeExplodeProvider implements DownloadRepository {
     required void Function(double progress, int current, int total, String title) onProgress,
     required bool Function() isCancelled,
   }) async {
+    debugPrint('[YTProvider] downloadPlaylist: iniciando — playlistId=$playlistId, audioOnly=$audioOnly');
     try {
       final videos = await _yt.playlists.getVideos(playlistId).toList();
       final total = videos.length;
+      debugPrint('[YTProvider] downloadPlaylist: $total videos encontrados');
 
       if (total == 0) {
+        debugPrint('[YTProvider] downloadPlaylist: playlist vazia');
         return DownloadTaskModel(
           status: false,
           detail: 'Playlist vazia ou inacessivel',
@@ -252,6 +268,7 @@ class YoutubeExplodeProvider implements DownloadRepository {
 
       for (var i = 0; i < total; i++) {
         if (isCancelled()) {
+          debugPrint('[YTProvider] downloadPlaylist: CANCELADO antes do video ${i + 1}/$total');
           return DownloadTaskModel(
             status: false,
             detail: 'Download cancelado',
@@ -260,10 +277,12 @@ class YoutubeExplodeProvider implements DownloadRepository {
         }
 
         final video = videos[i];
+        debugPrint('[YTProvider] downloadPlaylist: [${i + 1}/$total] "${video.title}"');
         onProgress(0.0, i + 1, total, video.title);
 
         // Per-video timeout: if this video stalls for 90s, abort and skip it
         final videoTimer = Timer(const Duration(seconds: 90), () {
+          debugPrint('[YTProvider] downloadPlaylist: TIMEOUT 90s no video ${i + 1}/$total — reiniciando _yt');
           _yt.close();
           _yt = YoutubeExplode();
         });
@@ -281,7 +300,7 @@ class YoutubeExplodeProvider implements DownloadRepository {
             streamInfo = manifest.muxed.withHighestBitrate();
           }
 
-          final ext = audioOnly ? 'mp3' : 'mp4';
+          final ext = audioOnly ? _resolveAudioExt(streamInfo.container.name) : 'mp4';
           final filePath = FileUtils.buildFilePath(outputDirectory, video.title, ext);
           final file = File(filePath);
           final sink = file.openWrite();
@@ -292,27 +311,35 @@ class YoutubeExplodeProvider implements DownloadRepository {
             int received = 0;
 
             await for (final chunk in stream) {
-              if (isCancelled()) break;
+              if (isCancelled()) {
+                debugPrint('[YTProvider] downloadPlaylist: isCancelled=true durante video ${i + 1}/$total — interrompendo');
+                break;
+              }
               sink.add(chunk);
               received += chunk.length;
               if (totalBytes > 0) {
                 onProgress(received / totalBytes, i + 1, total, video.title);
+              } else {
+                onProgress((received / _audioEstimateBytes).clamp(0.0, 0.95), i + 1, total, video.title);
               }
             }
 
             await sink.flush();
             await sink.close();
-          } catch (_) {
+            debugPrint('[YTProvider] downloadPlaylist: [${i + 1}/$total] concluido — $filePath');
+          } catch (e) {
+            debugPrint('[YTProvider] downloadPlaylist: ERRO no stream do video ${i + 1}/$total — $e');
             await sink.close();
             if (await file.exists()) await file.delete();
           }
-        } catch (_) {
-          // Skip failed/timed-out video, continue with the rest
+        } catch (e) {
+          debugPrint('[YTProvider] downloadPlaylist: ERRO/TIMEOUT no video ${i + 1}/$total — pulando ($e)');
         } finally {
           videoTimer.cancel();
         }
       }
 
+      debugPrint('[YTProvider] downloadPlaylist: CONCLUIDO — $total videos processados');
       return DownloadTaskModel(
         status: true,
         detail: 'Playlist baixada com sucesso!',
@@ -321,6 +348,7 @@ class YoutubeExplodeProvider implements DownloadRepository {
         totalItems: total,
       );
     } catch (e) {
+      debugPrint('[YTProvider] downloadPlaylist: ERRO geral — $e');
       return DownloadTaskModel(
         status: false,
         detail: 'Erro ao baixar playlist: ${_friendlyError(e)}',
@@ -331,6 +359,7 @@ class YoutubeExplodeProvider implements DownloadRepository {
 
   @override
   void abortDownload() {
+    debugPrint('[YTProvider] abortDownload: fechando _yt e reiniciando instancia');
     // Closing _yt aborts any pending HTTP request inside the stream loop,
     // which throws HttpClientClosedException and breaks the while loop.
     _yt.close();
@@ -342,6 +371,13 @@ class YoutubeExplodeProvider implements DownloadRepository {
   @override
   void dispose() {
     _yt.close();
+  }
+
+  static const _audioEstimateBytes = 8 * 1024 * 1024; // 8 MB fallback when Content-Length is absent
+
+  String _resolveAudioExt(String? container) {
+    if (container == null) return 'm4a';
+    return container.toLowerCase() == 'mp4' ? 'm4a' : container.toLowerCase();
   }
 
   bool _isPlaylistUrl(String url) {

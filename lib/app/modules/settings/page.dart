@@ -39,7 +39,7 @@ class SettingsPage extends GetView<SettingsController> {
               _buildSectionTitle(AppStrings.labelDefaultQuality),
               const SizedBox(height: 8),
               _buildQualitySelector(),
-              if (controller.isAndroid) ...[
+              if (controller.supportsYtdlp) ...[
                 const SizedBox(height: 24),
                 _buildSectionTitle(AppStrings.labelYtdlpSection),
                 const SizedBox(height: 8),
