@@ -171,7 +171,7 @@ class SettingsPage extends GetView<SettingsController> {
                     style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                   ),
                   value: controller.getPreferYtdlp,
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                   onChanged: controller.onPreferYtdlpChanged,
                 )),
             const SizedBox(height: 4),
