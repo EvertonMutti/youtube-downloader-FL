@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Android (Debug)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "android",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "Android (Profile)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "android",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "Android (Release)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "android",
+      "flutterMode": "release"
+    },
+    {
+      "name": "Windows (Debug)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "windows",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "Windows (Release)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "windows",
+      "flutterMode": "release"
+    }
+  ]
+}
