@@ -16,4 +16,11 @@ class StreamOptionModel {
     this.bitrate,
     this.container,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is StreamOptionModel && other.tag == tag;
+
+  @override
+  int get hashCode => tag.hashCode;
 }

@@ -10,6 +10,9 @@ import 'package:youtube_downloader/app/modules/download/repository.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class YoutubeExplodeProvider implements DownloadRepository {
+  static final _videoClients = [YoutubeApiClient.tv, YoutubeApiClient.android];
+  static final _audioClients = [YoutubeApiClient.androidVr, YoutubeApiClient.ios];
+
   YoutubeExplode _yt = YoutubeExplode();
   StreamManifest? _cachedManifest;
   String? _cachedManifestVideoId;
@@ -76,7 +79,7 @@ class YoutubeExplodeProvider implements DownloadRepository {
     try {
       final manifest = await _yt.videos.streamsClient.getManifest(
         videoId,
-        ytClients: [YoutubeApiClient.tv, YoutubeApiClient.android],
+        ytClients: audioOnly ? _audioClients : _videoClients,
       );
       _cachedManifest = manifest;
       _cachedManifestVideoId = videoId;
@@ -153,7 +156,7 @@ class YoutubeExplodeProvider implements DownloadRepository {
           ? _cachedManifest!
           : await _yt.videos.streamsClient.getManifest(
               videoId,
-              ytClients: [YoutubeApiClient.tv, YoutubeApiClient.android],
+              ytClients: streamOption.isAudioOnly ? _audioClients : _videoClients,
             );
       final StreamInfo streamInfo;
 
@@ -317,7 +320,7 @@ class YoutubeExplodeProvider implements DownloadRepository {
         try {
           final manifest = await _yt.videos.streamsClient.getManifest(
             video.id,
-            ytClients: [YoutubeApiClient.tv, YoutubeApiClient.android],
+            ytClients: audioOnly ? _audioClients : _videoClients,
           );
           StreamInfo streamInfo;
 

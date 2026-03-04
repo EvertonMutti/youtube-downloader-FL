@@ -44,6 +44,10 @@ class YtdlpService extends GetxService {
     final path = '${dir.path}/$_binaryName';
     final file = File(path);
     if (await file.exists()) {
+      if (!Platform.isWindows) {
+        final chmodResult = await Process.run('chmod', ['755', path]);
+        debugPrint('[YtdlpService] init: chmod exitCode=${chmodResult.exitCode}');
+      }
       _binaryPath = path;
       debugPrint('[YtdlpService] init: binario encontrado em $path');
     } else {
