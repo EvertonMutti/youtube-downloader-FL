@@ -91,6 +91,32 @@ class YtdlpService extends GetxService {
     }
   }
 
+  /// Updates the yt-dlp binary using its built-in self-update mechanism.
+  /// Falls back to re-download if the binary is not available.
+  /// Returns true on success, false on failure.
+  Future<bool> updateBinary() async {
+    if (_binaryPath == null) {
+      debugPrint('[YtdlpService] updateBinary: binario nao disponivel, redirecionando para ensureBinary');
+      return ensureBinary();
+    }
+    debugPrint('[YtdlpService] updateBinary: executando yt-dlp -U');
+    try {
+      final result = await Process.run(_binaryPath!, ['-U']);
+      debugPrint('[YtdlpService] updateBinary: exitCode=${result.exitCode}');
+      if (result.stdout.toString().isNotEmpty) {
+        debugPrint('[YtdlpService] updateBinary: stdout=${result.stdout}');
+      }
+      if (result.exitCode != 0) {
+        debugPrint('[YtdlpService] updateBinary: stderr=${result.stderr}');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[YtdlpService] updateBinary: ERRO — $e');
+      return false;
+    }
+  }
+
   /// Removes the downloaded binary and resets availability.
   Future<void> removeBinary() async {
     if (_binaryPath == null) return;

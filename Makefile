@@ -1,4 +1,4 @@
-.PHONY: help get analyze clean build-android build-android-debug build-aab install run-android run-windows apk-path
+.PHONY: help get analyze clean build-android build-android-debug build-aab install run-android run-windows build-windows apk-path
 
 help: ## List all available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
@@ -29,6 +29,9 @@ run-android: ## Run on connected Android device
 
 run-windows: ## Run on Windows
 	flutter run -d windows
+
+build-windows: ## Build release executable for Windows
+	flutter build windows --release
 
 apk-path: ## Show path of the generated APK
 	@echo "Release APK: build/app/outputs/flutter-apk/app-release.apk"

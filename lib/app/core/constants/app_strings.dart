@@ -86,6 +86,10 @@ class AppStrings {
   static const msgYtdlpDownloading = 'Baixando binario yt-dlp...';
   static const msgYtdlpSuccess = 'yt-dlp instalado com sucesso!';
   static const msgYtdlpError = 'Falha ao instalar yt-dlp';
+  static const labelUpdateYtdlp = 'Atualizar yt-dlp';
+  static const msgYtdlpUpdating = 'Atualizando yt-dlp...';
+  static const msgYtdlpUpdateSuccess = 'yt-dlp atualizado com sucesso!';
+  static const msgYtdlpUpdateError = 'Falha ao atualizar yt-dlp';
 
   // Tooltip
   static const tooltipSettings = 'Configuracoes';

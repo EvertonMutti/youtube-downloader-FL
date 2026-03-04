@@ -13,6 +13,8 @@ class YoutubeExplodeProvider implements DownloadRepository {
   YoutubeExplode _yt = YoutubeExplode();
   StreamManifest? _cachedManifest;
   String? _cachedManifestVideoId;
+  StreamSubscription<List<int>>? _activeDownloadSubscription;
+  Completer<bool>? _activeDownloadCompleter;
 
   @override
   Future<VideoInfoModel> getVideoInfo(String url) async {
@@ -182,23 +184,48 @@ class YoutubeExplodeProvider implements DownloadRepository {
       final sink = file.openWrite();
 
       try {
-        final stream = _yt.videos.streamsClient.get(streamInfo);
+        final rawStream = _yt.videos.streamsClient
+            .get(streamInfo)
+            .timeout(const Duration(seconds: 30));
         int received = 0;
 
+        final completer = Completer<bool>();
+        _activeDownloadCompleter = completer;
+
+        _activeDownloadSubscription = rawStream.listen(
+          (chunk) {
+            if (isCancelled()) {
+              debugPrint('[YTProvider] downloadVideo: isCancelled=true — cancelando subscription (recebido: $received/$totalBytes bytes)');
+              _activeDownloadSubscription?.cancel();
+              _activeDownloadSubscription = null;
+              if (!completer.isCompleted) completer.complete(true);
+              return;
+            }
+            sink.add(chunk);
+            received += chunk.length;
+            if (totalBytes > 0) {
+              onProgress(received / totalBytes);
+            } else {
+              onProgress((received / _audioEstimateBytes).clamp(0.0, 0.95));
+            }
+          },
+          onDone: () {
+            _activeDownloadSubscription = null;
+            if (!completer.isCompleted) completer.complete(false);
+          },
+          onError: (e, st) {
+            _activeDownloadSubscription = null;
+            if (!completer.isCompleted) completer.completeError(e, st);
+          },
+          cancelOnError: true,
+        );
+
         bool cancelled = false;
-        await for (final chunk in stream) {
-          if (isCancelled()) {
-            debugPrint('[YTProvider] downloadVideo: isCancelled=true — interrompendo loop (recebido: $received/$totalBytes bytes)');
-            cancelled = true;
-            break;
-          }
-          sink.add(chunk);
-          received += chunk.length;
-          if (totalBytes > 0) {
-            onProgress(received / totalBytes);
-          } else {
-            onProgress((received / _audioEstimateBytes).clamp(0.0, 0.95));
-          }
+        try {
+          cancelled = await completer.future;
+        } finally {
+          _activeDownloadSubscription = null;
+          _activeDownloadCompleter = null;
         }
 
         await sink.flush();
@@ -359,9 +386,13 @@ class YoutubeExplodeProvider implements DownloadRepository {
 
   @override
   void abortDownload() {
-    debugPrint('[YTProvider] abortDownload: fechando _yt e reiniciando instancia');
-    // Closing _yt aborts any pending HTTP request inside the stream loop,
-    // which throws HttpClientClosedException and breaks the while loop.
+    debugPrint('[YTProvider] abortDownload: cancelando subscricao ativa');
+    _activeDownloadSubscription?.cancel();
+    _activeDownloadSubscription = null;
+    if (_activeDownloadCompleter != null && !_activeDownloadCompleter!.isCompleted) {
+      _activeDownloadCompleter!.complete(true);
+    }
+    _activeDownloadCompleter = null;
     _yt.close();
     _yt = YoutubeExplode();
     _cachedManifest = null;

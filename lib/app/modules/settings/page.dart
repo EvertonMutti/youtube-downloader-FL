@@ -177,16 +177,48 @@ class SettingsPage extends GetView<SettingsController> {
             const SizedBox(height: 4),
             Obx(() {
               if (controller.isYtdlpInstalled) {
-                return const Padding(
-                  padding: EdgeInsets.only(left: 16, bottom: 8),
+                return Padding(
+                  padding: const EdgeInsets.only(left: 16, bottom: 8),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle, color: AppColors.success, size: 16),
-                      SizedBox(width: 6),
-                      Text(
+                      const Icon(Icons.check_circle, color: AppColors.success, size: 16),
+                      const SizedBox(width: 6),
+                      const Text(
                         AppStrings.labelYtdlpReady,
                         style: TextStyle(color: AppColors.success, fontSize: 13),
                       ),
+                      const SizedBox(width: 12),
+                      if (controller.getUpdatingYtdlp)
+                        const Row(
+                          children: [
+                            SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: AppColors.primary),
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              AppStrings.msgYtdlpUpdating,
+                              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                            ),
+                          ],
+                        )
+                      else
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.system_update_alt, size: 16),
+                          label: const Text(AppStrings.labelUpdateYtdlp,
+                              style: TextStyle(fontSize: 12)),
+                          onPressed: controller.updateYtdlpBinary,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primary),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 );

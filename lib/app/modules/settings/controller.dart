@@ -17,6 +17,7 @@ class SettingsController extends GetxController {
   final RxBool loading = false.obs;
   final RxBool saving = false.obs;
   final RxBool downloadingYtdlp = false.obs;
+  final RxBool updatingYtdlp = false.obs;
 
   final TextEditingController pathController = TextEditingController();
   final Rx<QualityOption> selectedQuality = QualityOption.best.obs;
@@ -28,6 +29,7 @@ class SettingsController extends GetxController {
   bool get getLoading => loading.value;
   bool get getSaving => saving.value;
   bool get getDownloadingYtdlp => downloadingYtdlp.value;
+  bool get getUpdatingYtdlp => updatingYtdlp.value;
   QualityOption get getSelectedQuality => selectedQuality.value;
   DownloadType get getSelectedType => selectedType.value;
   bool get getPreferYtdlp => preferYtdlp.value;
@@ -112,6 +114,30 @@ class SettingsController extends GetxController {
       Get.snackbar(
         AppStrings.snackError,
         AppStrings.msgYtdlpError,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Get.theme.colorScheme.error,
+        colorText: Get.theme.colorScheme.onError,
+      );
+    }
+  }
+
+  Future<void> updateYtdlpBinary() async {
+    updatingYtdlp.value = true;
+    final success = await YtdlpService.to.updateBinary();
+    updatingYtdlp.value = false;
+
+    if (success) {
+      Get.snackbar(
+        AppStrings.snackSuccess,
+        AppStrings.msgYtdlpUpdateSuccess,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.success,
+        colorText: AppColors.textPrimary,
+      );
+    } else {
+      Get.snackbar(
+        AppStrings.snackError,
+        AppStrings.msgYtdlpUpdateError,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Get.theme.colorScheme.error,
         colorText: Get.theme.colorScheme.onError,
