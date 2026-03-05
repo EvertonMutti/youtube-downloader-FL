@@ -8,20 +8,23 @@ import 'package:path_provider/path_provider.dart';
 class YtdlpService extends GetxService {
   static YtdlpService get to => Get.find();
 
-  static String get _binaryName => Platform.isWindows ? 'yt-dlp.exe' : 'yt-dlp';
+  static const _platformUrls = {
+    'android': 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64',
+    'windows': 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe',
+    'macos': 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos',
+    'linux': 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp',
+  };
 
-  static String get _downloadUrl {
-    if (Platform.isAndroid) {
-      return 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64';
-    }
-    if (Platform.isWindows) {
-      return 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe';
-    }
-    if (Platform.isMacOS) {
-      return 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos';
-    }
-    return 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
+  static String get _platformKey {
+    if (Platform.isAndroid) return 'android';
+    if (Platform.isWindows) return 'windows';
+    if (Platform.isMacOS) return 'macos';
+    return 'linux';
   }
+
+  static String get _downloadUrl => _platformUrls[_platformKey]!;
+
+  static String get _binaryName => Platform.isWindows ? 'yt-dlp.exe' : 'yt-dlp';
 
   static bool get isSupportedPlatform =>
       Platform.isAndroid || Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -35,29 +38,44 @@ class YtdlpService extends GetxService {
     return _binaryPath!;
   }
 
+  Future<String> _resolveBinaryPath() async {
+    final dir = await getApplicationSupportDirectory();
+    return '${dir.path}/$_binaryName';
+  }
+
+  Future<void> _makeExecutable(String path) async {
+    if (Platform.isWindows) return;
+    final result = await Process.run('chmod', ['755', path]);
+    debugPrint('[YtdlpService] chmod exitCode=${result.exitCode}');
+  }
+
+  Future<bool> _downloadAndInstall(String path) async {
+    debugPrint('[YtdlpService] _downloadAndInstall: $_downloadUrl');
+    final response = await http.get(Uri.parse(_downloadUrl));
+    debugPrint('[YtdlpService] resposta HTTP ${response.statusCode} (${response.bodyBytes.length} bytes)');
+    if (response.statusCode != 200) return false;
+
+    await File(path).writeAsBytes(response.bodyBytes);
+    await _makeExecutable(path);
+    return true;
+  }
+
   Future<YtdlpService> init() async {
     if (!isSupportedPlatform) {
       debugPrint('[YtdlpService] init: plataforma nao suportada');
       return this;
     }
-    final dir = await getApplicationSupportDirectory();
-    final path = '${dir.path}/$_binaryName';
-    final file = File(path);
-    if (await file.exists()) {
-      if (!Platform.isWindows) {
-        final chmodResult = await Process.run('chmod', ['755', path]);
-        debugPrint('[YtdlpService] init: chmod exitCode=${chmodResult.exitCode}');
-      }
-      _binaryPath = path;
-      debugPrint('[YtdlpService] init: binario encontrado em $path');
-    } else {
+    final path = await _resolveBinaryPath();
+    if (!await File(path).exists()) {
       debugPrint('[YtdlpService] init: binario NAO encontrado em $path');
+      return this;
     }
+    await _makeExecutable(path);
+    _binaryPath = path;
+    debugPrint('[YtdlpService] init: binario encontrado em $path');
     return this;
   }
 
-  /// Downloads the yt-dlp binary if not already present and marks it executable.
-  /// Returns true on success, false on failure.
   Future<bool> ensureBinary() async {
     if (_binaryPath != null) {
       debugPrint('[YtdlpService] ensureBinary: binario ja disponivel em $_binaryPath');
@@ -68,24 +86,10 @@ class YtdlpService extends GetxService {
       return false;
     }
 
-    debugPrint('[YtdlpService] ensureBinary: iniciando download de $_downloadUrl');
     try {
-      final dir = await getApplicationSupportDirectory();
-      final path = '${dir.path}/$_binaryName';
-      final file = File(path);
-
-      final response = await http.get(Uri.parse(_downloadUrl));
-      debugPrint('[YtdlpService] ensureBinary: resposta HTTP ${response.statusCode} (${response.bodyBytes.length} bytes)');
-      if (response.statusCode != 200) return false;
-
-      await file.writeAsBytes(response.bodyBytes);
-
-      if (!Platform.isWindows) {
-        final chmodResult = await Process.run('chmod', ['755', path]);
-        debugPrint('[YtdlpService] ensureBinary: chmod exitCode=${chmodResult.exitCode}');
-        if (chmodResult.exitCode != 0) return false;
-      }
-
+      final path = await _resolveBinaryPath();
+      final success = await _downloadAndInstall(path);
+      if (!success) return false;
       _binaryPath = path;
       debugPrint('[YtdlpService] ensureBinary: binario pronto em $path');
       return true;
@@ -95,9 +99,6 @@ class YtdlpService extends GetxService {
     }
   }
 
-  /// Updates the yt-dlp binary using its built-in self-update mechanism.
-  /// Falls back to re-download if the binary is not available.
-  /// Returns true on success, false on failure.
   Future<bool> updateBinary() async {
     if (_binaryPath == null) {
       debugPrint('[YtdlpService] updateBinary: binario nao disponivel, redirecionando para ensureBinary');
@@ -121,7 +122,6 @@ class YtdlpService extends GetxService {
     }
   }
 
-  /// Removes the downloaded binary and resets availability.
   Future<void> removeBinary() async {
     if (_binaryPath == null) return;
     debugPrint('[YtdlpService] removeBinary: removendo $_binaryPath');

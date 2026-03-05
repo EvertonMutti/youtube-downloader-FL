@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:youtube_downloader/app/core/services/audio_converter_service.dart';
 import 'package:youtube_downloader/app/core/utils/file_utils.dart';
 import 'package:youtube_downloader/app/modules/download/core/model/download_task_model.dart';
 import 'package:youtube_downloader/app/modules/download/core/model/stream_option_model.dart';
@@ -250,7 +251,10 @@ class YoutubeExplodeProvider implements DownloadRepository {
         rethrow;
       }
 
-      debugPrint('[YTProvider] downloadVideo: CONCLUIDO — salvo em $filePath');
+      final savedPath = streamOption.isAudioOnly
+          ? await AudioConverterService.convertToMp3(filePath)
+          : filePath;
+      debugPrint('[YTProvider] downloadVideo: CONCLUIDO — salvo em $savedPath');
       return DownloadTaskModel(
         status: true,
         detail: 'Download concluido!',
@@ -258,7 +262,7 @@ class YoutubeExplodeProvider implements DownloadRepository {
         title: title,
         downloadStatus: DownloadStatus.completed,
         progress: 1.0,
-        savedPath: filePath,
+        savedPath: savedPath,
       );
     } catch (e) {
       debugPrint('[YTProvider] downloadVideo: ERRO — ${_friendlyError(e)}');
@@ -356,7 +360,10 @@ class YoutubeExplodeProvider implements DownloadRepository {
 
             await sink.flush();
             await sink.close();
-            debugPrint('[YTProvider] downloadPlaylist: [${i + 1}/$total] concluido — $filePath');
+            final savedFilePath = audioOnly
+                ? await AudioConverterService.convertToMp3(filePath)
+                : filePath;
+            debugPrint('[YTProvider] downloadPlaylist: [${i + 1}/$total] concluido — $savedFilePath');
           } catch (e) {
             debugPrint('[YTProvider] downloadPlaylist: ERRO no stream do video ${i + 1}/$total — $e');
             await sink.close();

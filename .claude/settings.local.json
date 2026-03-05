@@ -5,7 +5,8 @@
       "Bash(flutter pub:*)",
       "Bash(flutter analyze:*)",
       "Bash(python:*)",
-      "WebFetch(domain:pub.dev)"
+      "WebFetch(domain:pub.dev)",
+      "Bash(dart analyze:*)"
     ]
   }
 }

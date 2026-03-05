@@ -22,11 +22,14 @@ class SettingsService extends GetxService {
   String get downloadPath =>
       _prefs.getString(_keyDownloadPath) ?? FileUtils.getDefaultDownloadPath();
 
+  T _getEnum<T>(String key, String defaultValue, T Function(String) fromValue) =>
+      fromValue(_prefs.getString(key) ?? defaultValue);
+
   QualityOption get defaultQuality =>
-      QualityOption.fromValue(_prefs.getString(_keyDefaultQuality) ?? QualityOption.best.value);
+      _getEnum(_keyDefaultQuality, QualityOption.best.value, QualityOption.fromValue);
 
   DownloadType get defaultType =>
-      DownloadType.fromValue(_prefs.getString(_keyDefaultType) ?? DownloadType.video.value);
+      _getEnum(_keyDefaultType, DownloadType.video.value, DownloadType.fromValue);
 
   Future<void> setDownloadPath(String path) async {
     await _prefs.setString(_keyDownloadPath, path);

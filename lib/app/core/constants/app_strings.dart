@@ -41,6 +41,7 @@ class AppStrings {
   static const statusFetching = 'Buscando informacoes...';
   static const statusWaiting = 'Aguardando...';
   static const statusError = 'Erro no download';
+  static const statusConverting = 'Convertendo para MP3...';
   static const statusPercent = '% concluido';
 
   // Settings page
