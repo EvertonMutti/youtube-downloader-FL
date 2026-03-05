@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:youtube_downloader/app/core/constants/app_colors.dart';
 import 'package:youtube_downloader/app/core/constants/app_strings.dart';
+import 'package:youtube_downloader/app/core/enums/audio_format.dart';
 import 'package:youtube_downloader/app/core/enums/download_type.dart';
 import 'package:youtube_downloader/app/core/enums/quality_option.dart';
 import 'package:youtube_downloader/app/core/services/ytdlp_service.dart';
@@ -23,8 +24,10 @@ class SettingsController extends GetxController {
   final Rx<QualityOption> selectedQuality = QualityOption.best.obs;
   final Rx<DownloadType> selectedType = DownloadType.video.obs;
   final RxBool preferYtdlp = false.obs;
+  final Rx<AudioFormat> selectedAudioFormat = AudioFormat.mp3.obs;
 
   final List<QualityOption> qualityOptions = QualityOption.values;
+  final List<AudioFormat> audioFormatOptions = AudioFormat.values;
 
   bool get getLoading => loading.value;
   bool get getSaving => saving.value;
@@ -33,6 +36,7 @@ class SettingsController extends GetxController {
   QualityOption get getSelectedQuality => selectedQuality.value;
   DownloadType get getSelectedType => selectedType.value;
   bool get getPreferYtdlp => preferYtdlp.value;
+  AudioFormat get getSelectedAudioFormat => selectedAudioFormat.value;
   bool get supportsYtdlp => YtdlpService.isSupportedPlatform;
   bool get isYtdlpInstalled => YtdlpService.isSupportedPlatform && YtdlpService.to.isAvailable;
 
@@ -61,6 +65,7 @@ class SettingsController extends GetxController {
       selectedQuality.value = result.defaultQuality ?? QualityOption.best;
       selectedType.value = result.defaultType ?? DownloadType.video;
       preferYtdlp.value = result.preferYtdlp ?? false;
+      selectedAudioFormat.value = result.audioFormat ?? AudioFormat.mp3;
     } else {
       Get.snackbar(
         AppStrings.snackError,
@@ -95,6 +100,10 @@ class SettingsController extends GetxController {
 
   void onPreferYtdlpChanged(bool? value) {
     if (value != null) preferYtdlp.value = value;
+  }
+
+  void onAudioFormatChanged(AudioFormat? format) {
+    if (format != null) selectedAudioFormat.value = format;
   }
 
   Future<void> downloadYtdlpBinary() async {
@@ -164,6 +173,7 @@ class SettingsController extends GetxController {
         defaultQuality: selectedQuality.value,
         defaultType: selectedType.value,
         preferYtdlp: preferYtdlp.value,
+        audioFormat: selectedAudioFormat.value,
       ),
     );
     setSaving = false;

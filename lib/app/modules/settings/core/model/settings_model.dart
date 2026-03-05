@@ -1,3 +1,4 @@
+import 'package:youtube_downloader/app/core/enums/audio_format.dart';
 import 'package:youtube_downloader/app/core/enums/download_type.dart';
 import 'package:youtube_downloader/app/core/enums/quality_option.dart';
 
@@ -8,6 +9,7 @@ class SettingsModel {
   final QualityOption? defaultQuality;
   final DownloadType? defaultType;
   final bool? preferYtdlp;
+  final AudioFormat? audioFormat;
 
   SettingsModel({
     this.status,
@@ -16,6 +18,7 @@ class SettingsModel {
     this.defaultQuality,
     this.defaultType,
     this.preferYtdlp,
+    this.audioFormat,
   });
 
   SettingsModel copyWith({
@@ -25,6 +28,7 @@ class SettingsModel {
     QualityOption? defaultQuality,
     DownloadType? defaultType,
     bool? preferYtdlp,
+    AudioFormat? audioFormat,
   }) {
     return SettingsModel(
       status: status ?? this.status,
@@ -33,6 +37,7 @@ class SettingsModel {
       defaultQuality: defaultQuality ?? this.defaultQuality,
       defaultType: defaultType ?? this.defaultType,
       preferYtdlp: preferYtdlp ?? this.preferYtdlp,
+      audioFormat: audioFormat ?? this.audioFormat,
     );
   }
 }

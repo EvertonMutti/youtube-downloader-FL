@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:youtube_downloader/app/core/constants/app_colors.dart';
 import 'package:youtube_downloader/app/core/constants/app_strings.dart';
+import 'package:youtube_downloader/app/core/enums/audio_format.dart';
 import 'package:youtube_downloader/app/core/enums/download_type.dart';
 import 'package:youtube_downloader/app/core/enums/quality_option.dart';
 import 'package:youtube_downloader/app/modules/settings/controller.dart';
@@ -35,6 +36,10 @@ class SettingsPage extends GetView<SettingsController> {
               _buildSectionTitle(AppStrings.labelDefaultType),
               const SizedBox(height: 8),
               _buildTypeSelector(),
+              const SizedBox(height: 24),
+              _buildSectionTitle(AppStrings.labelDefaultAudioFormat),
+              const SizedBox(height: 8),
+              _buildAudioFormatSelector(),
               const SizedBox(height: 24),
               _buildSectionTitle(AppStrings.labelDefaultQuality),
               const SizedBox(height: 8),
@@ -127,6 +132,29 @@ class SettingsPage extends GetView<SettingsController> {
                 )),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAudioFormatSelector() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Obx(() => DropdownButtonFormField<AudioFormat>(
+              value: controller.getSelectedAudioFormat,
+              dropdownColor: AppColors.surface,
+              style: const TextStyle(color: AppColors.textSecondary),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.music_note, color: AppColors.accent),
+              ),
+              items: controller.audioFormatOptions.map((f) {
+                return DropdownMenuItem(
+                  value: f,
+                  child: Text(f.label),
+                );
+              }).toList(),
+              onChanged: controller.onAudioFormatChanged,
+            )),
       ),
     );
   }

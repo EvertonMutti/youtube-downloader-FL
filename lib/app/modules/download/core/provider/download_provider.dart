@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:youtube_downloader/app/core/services/audio_converter_service.dart';
+import 'package:youtube_downloader/app/core/services/settings_service.dart';
 import 'package:youtube_downloader/app/core/utils/file_utils.dart';
 import 'package:youtube_downloader/app/modules/download/core/model/download_task_model.dart';
 import 'package:youtube_downloader/app/modules/download/core/model/stream_option_model.dart';
@@ -252,7 +253,7 @@ class YoutubeExplodeProvider implements DownloadRepository {
       }
 
       final savedPath = streamOption.isAudioOnly
-          ? await AudioConverterService.convertToMp3(filePath)
+          ? await AudioConverterService.convert(filePath, SettingsService.to.audioFormat)
           : filePath;
       debugPrint('[YTProvider] downloadVideo: CONCLUIDO — salvo em $savedPath');
       return DownloadTaskModel(
@@ -361,7 +362,7 @@ class YoutubeExplodeProvider implements DownloadRepository {
             await sink.flush();
             await sink.close();
             final savedFilePath = audioOnly
-                ? await AudioConverterService.convertToMp3(filePath)
+                ? await AudioConverterService.convert(filePath, SettingsService.to.audioFormat)
                 : filePath;
             debugPrint('[YTProvider] downloadPlaylist: [${i + 1}/$total] concluido — $savedFilePath');
           } catch (e) {

@@ -1,32 +1,34 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:youtube_downloader/app/core/enums/audio_format.dart';
 
 class AudioConverterService {
   AudioConverterService._();
 
-  static Future<String> convertToMp3(String inputPath) async {
-    final outputPath = _replaceExtension(inputPath, 'mp3');
-    debugPrint('[AudioConverter] convertToMp3: $inputPath → $outputPath');
+  static Future<String> convert(String inputPath, AudioFormat format) async {
+    final outputPath = _replaceExtension(inputPath, format.value);
+    debugPrint('[AudioConverter] convert: $inputPath → $outputPath (${format.label})');
 
-    final success = await _runFfmpeg(inputPath, outputPath);
+    final success = await _runFfmpeg(inputPath, outputPath, format);
     if (!success) return inputPath;
 
     await _deleteOriginal(inputPath);
     return outputPath;
   }
 
-  static List<String> _buildFfmpegArgs(String input, String output) => [
-        '-i', input,
-        '-codec:a', 'libmp3lame',
-        '-q:a', '2',
-        output,
-        '-y',
-      ];
+  static Future<String> convertToMp3(String inputPath) => convert(inputPath, AudioFormat.mp3);
 
-  static Future<bool> _runFfmpeg(String input, String output) async {
+  static List<String> _buildFfmpegArgs(String input, String output, AudioFormat format) {
+    final codecArgs = format == AudioFormat.m4a
+        ? ['-codec:a', 'aac', '-q:a', '1']
+        : ['-codec:a', 'libmp3lame', '-q:a', '2'];
+    return ['-i', input, ...codecArgs, output, '-y'];
+  }
+
+  static Future<bool> _runFfmpeg(String input, String output, AudioFormat format) async {
     try {
-      final result = await Process.run('ffmpeg', _buildFfmpegArgs(input, output));
+      final result = await Process.run('ffmpeg', _buildFfmpegArgs(input, output, format));
       if (result.exitCode == 0 && await File(output).exists()) {
         debugPrint('[AudioConverter] conversao concluida: $output');
         return true;

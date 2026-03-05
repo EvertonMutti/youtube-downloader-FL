@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:youtube_downloader/app/core/services/audio_converter_service.dart';
+import 'package:youtube_downloader/app/core/services/settings_service.dart';
 import 'package:youtube_downloader/app/core/services/ytdlp_service.dart';
 import 'package:youtube_downloader/app/core/utils/file_utils.dart';
 import 'package:youtube_downloader/app/modules/download/core/model/download_task_model.dart';
@@ -214,7 +215,7 @@ class YtdlpProvider implements DownloadRepository {
 
       final rawPath = actualPath ?? filePath;
       final savedPath = streamOption.isAudioOnly
-          ? await AudioConverterService.convertToMp3(rawPath)
+          ? await AudioConverterService.convert(rawPath, SettingsService.to.audioFormat)
           : rawPath;
       debugPrint('[YtdlpProvider] downloadVideo: CONCLUIDO — salvo em $savedPath');
       return DownloadTaskModel(

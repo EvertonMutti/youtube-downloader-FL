@@ -14,6 +14,7 @@ class SettingsProvider implements SettingsRepository {
         defaultQuality: service.defaultQuality,
         defaultType: service.defaultType,
         preferYtdlp: service.preferYtdlp,
+        audioFormat: service.audioFormat,
       );
     } catch (e) {
       return SettingsModel(
@@ -38,6 +39,9 @@ class SettingsProvider implements SettingsRepository {
       }
       if (settings.preferYtdlp != null) {
         await service.setPreferYtdlp(settings.preferYtdlp!);
+      }
+      if (settings.audioFormat != null) {
+        await service.setAudioFormat(settings.audioFormat!);
       }
       return SettingsModel(status: true, detail: 'Configuracoes salvas com sucesso!');
     } catch (e) {

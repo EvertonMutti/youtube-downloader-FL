@@ -41,7 +41,7 @@ class AppStrings {
   static const statusFetching = 'Buscando informacoes...';
   static const statusWaiting = 'Aguardando...';
   static const statusError = 'Erro no download';
-  static const statusConverting = 'Convertendo para MP3...';
+  static const statusConverting = 'Convertendo audio...';
   static const statusPercent = '% concluido';
 
   // Settings page
@@ -75,6 +75,9 @@ class AppStrings {
   static const msgPlaylistDownloadError = 'Falha ao baixar playlist';
   static const msgPermissionDenied =
       'Conceda permissao de armazenamento nas configuracoes do sistema';
+
+  // Audio format
+  static const labelDefaultAudioFormat = 'Formato Padrao de Audio';
 
   // yt-dlp settings
   static const labelYtdlpSection = 'Motor de Download';

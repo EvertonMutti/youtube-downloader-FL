@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:youtube_downloader/app/core/enums/audio_format.dart';
 import 'package:youtube_downloader/app/core/enums/download_type.dart';
 import 'package:youtube_downloader/app/core/enums/quality_option.dart';
 import 'package:youtube_downloader/app/core/utils/file_utils.dart';
@@ -11,6 +12,7 @@ class SettingsService extends GetxService {
   static const _keyDefaultQuality = 'default_quality';
   static const _keyDefaultType = 'default_type';
   static const _keyPreferYtdlp = 'prefer_ytdlp';
+  static const _keyAudioFormat = 'audio_format';
 
   late SharedPreferences _prefs;
 
@@ -47,5 +49,12 @@ class SettingsService extends GetxService {
 
   Future<void> setPreferYtdlp(bool value) async {
     await _prefs.setBool(_keyPreferYtdlp, value);
+  }
+
+  AudioFormat get audioFormat =>
+      _getEnum(_keyAudioFormat, AudioFormat.mp3.value, AudioFormat.fromValue);
+
+  Future<void> setAudioFormat(AudioFormat format) async {
+    await _prefs.setString(_keyAudioFormat, format.value);
   }
 }
