@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:youtube_downloader/app/core/services/audio_converter_service.dart';
 import 'package:youtube_downloader/app/core/services/settings_service.dart';
 import 'package:youtube_downloader/app/core/utils/file_utils.dart';
@@ -58,21 +60,59 @@ class YoutubeExplodeProvider implements DownloadRepository {
           detail: 'URL invalida. Verifique o link do YouTube e tente novamente.',
         );
       }
-      final video = await _yt.videos.get(videoId);
-      return VideoInfoModel(
-        status: true,
-        videoId: videoId,
-        title: video.title,
-        author: video.author,
-        duration: video.duration,
-        thumbnailUrl: video.thumbnails.highResUrl,
-        isPlaylist: false,
-      );
+      try {
+        final video = await _yt.videos.get(videoId);
+        return VideoInfoModel(
+          status: true,
+          videoId: videoId,
+          title: video.title,
+          author: video.author,
+          duration: video.duration,
+          thumbnailUrl: video.thumbnails.highResUrl,
+          isPlaylist: false,
+        );
+      } catch (e) {
+        if (_isRateLimit(e)) {
+          debugPrint('[YTProvider] getVideoInfo: rate-limit detectado — fallback oEmbed');
+          final oembed = await _fetchOEmbed(videoId);
+          if (oembed != null) return oembed;
+        }
+        rethrow;
+      }
     } catch (e) {
       return VideoInfoModel(
         status: false,
         detail: 'Erro ao buscar informacoes: ${_friendlyError(e)}',
       );
+    }
+  }
+
+  bool _isRateLimit(Object e) {
+    final msg = e.toString();
+    return msg.contains('RequestLimitExceededException') || msg.contains('rate limiting');
+  }
+
+  Future<VideoInfoModel?> _fetchOEmbed(String videoId) async {
+    try {
+      final uri = Uri.parse(
+        'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=$videoId&format=json',
+      );
+      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) return null;
+      final json = jsonDecode(res.body) as Map<String, dynamic>;
+      return VideoInfoModel(
+        status: true,
+        videoId: videoId,
+        title: (json['title'] as String?) ?? videoId,
+        author: (json['author_name'] as String?) ?? '',
+        duration: null,
+        thumbnailUrl: (json['thumbnail_url'] as String?) ??
+            'https://img.youtube.com/vi/$videoId/hqdefault.jpg',
+        isPlaylist: false,
+      );
+    } catch (e) {
+      debugPrint('[YTProvider] _fetchOEmbed: falhou — $e');
+      return null;
     }
   }
 
