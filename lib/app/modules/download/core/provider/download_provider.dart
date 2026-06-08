@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:youtube_downloader/app/core/enums/audio_format.dart';
 import 'package:youtube_downloader/app/core/services/audio_converter_service.dart';
 import 'package:youtube_downloader/app/core/services/settings_service.dart';
 import 'package:youtube_downloader/app/core/utils/file_utils.dart';
@@ -401,8 +402,9 @@ class YoutubeExplodeProvider implements DownloadRepository {
 
             await sink.flush();
             await sink.close();
+            // Playlist sempre converte audio para m4a (formato padrao)
             final savedFilePath = audioOnly
-                ? await AudioConverterService.convert(filePath, SettingsService.to.audioFormat)
+                ? await AudioConverterService.convert(filePath, AudioFormat.m4a)
                 : filePath;
             debugPrint('[YTProvider] downloadPlaylist: [${i + 1}/$total] concluido — $savedFilePath');
           } catch (e) {
